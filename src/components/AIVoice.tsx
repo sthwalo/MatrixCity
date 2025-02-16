@@ -7,42 +7,37 @@ interface AIVoiceProps {
 const AIVoice: React.FC<AIVoiceProps> = ({ trigger }) => {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  useEffect(() => {
-    // Load voices
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (trigger && voices.length > 0) {
+  const speak = () => {
+    if ('speechSynthesis' in window) {
       try {
         const utterance = new SpeechSynthesisUtterance('Welcome to Matrix City');
-        utterance.rate = 0.9;
-        utterance.pitch = 0.8;
-        utterance.volume = 1;
+        
+        // Get all available voices
+        const availableVoices = window.speechSynthesis.getVoices();
+        console.log('Available voices:', availableVoices.map(v => `${v.name} (${v.lang})`));
 
-        // Find a suitable voice
-        const voice = voices.find(v => 
-          v.lang.includes('en') && 
-          (v.name.includes('Male') || v.name.includes('Daniel'))
-        ) || voices[0];
+        // Try to find a female English voice
+        const femaleVoice = availableVoices.find(voice => 
+          voice.lang.includes('en') && 
+          (voice.name.includes('Female') || 
+           voice.name.includes('Victoria') || 
+           voice.name.includes('Samantha') ||
+           voice.name.includes('Karen'))
+        );
 
-        if (voice) {
-          utterance.voice = voice;
+        if (femaleVoice) {
+          console.log('Selected voice:', femaleVoice.name);
+          utterance.voice = femaleVoice;
+        } else {
+          console.log('No female voice found, using default');
         }
 
+        // Adjust voice settings for more feminine sound
+        utterance.pitch = 1.2;  // Higher pitch
+        utterance.rate = 0.9;   // Slightly slower
+        utterance.volume = 1;
+
         // Debug logs
-        console.log('Speaking with voice:', voice?.name);
-        
         utterance.onstart = () => console.log('Speech started');
         utterance.onend = () => console.log('Speech ended');
         utterance.onerror = (e) => console.error('Speech error:', e);
@@ -52,6 +47,36 @@ const AIVoice: React.FC<AIVoiceProps> = ({ trigger }) => {
       } catch (error) {
         console.error('Speech synthesis error:', error);
       }
+    }
+  };
+
+  useEffect(() => {
+    // Initialize voices
+    const initVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      setVoices(availableVoices);
+      if (availableVoices.length > 0) {
+        console.log('Voices loaded:', availableVoices.length);
+      }
+    };
+
+    // Load voices and handle voice changes
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      initVoices();
+      window.speechSynthesis.onvoiceschanged = initVoices;
+    }
+
+    return () => {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.onvoiceschanged) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (trigger && voices.length > 0) {
+      speak();
     }
   }, [trigger, voices]);
 
